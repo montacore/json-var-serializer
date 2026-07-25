@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+
+
+# Serialize bash variables to JSON output
+# Created
+# Author: Joh Nallie via Dave Eddy
+# Date July 24th 2026
+# License: MIT
+# Contributors:
+#
+
+_jv-json-encode-string() {
+        local s=$1
+        local LC_ALL=C
+        local -A table=()
+        local hex
+        local byte
+        local esc
+        for((i = 1; i < 0x20; i++)); do
+            printf -v hex '02%x' "$i"
+            printf -v byte '%b' "$i"
+            printf -v esc '\\u%04x' "$i"
+            table[$byte]=$esc
+        done
+        table[$'\b']='\b'
+        table[$'\t']='\t'
+        table[$'\n']='\n'
+        table[$'\f']='\f'
+        table[$'\r']='\r'
+        table['\']='\\'
+        table['"']='\"'
+
+        #serialize the string
+        local out=''
+
+        local len=${#s}
+        local c
+        for((i = 0; i < len; i++)); do
+            c=${s:i:1}
+            esc=${table[$c]}
+
+            if [[ -n $esc ]]; then
+                # lookup table match for this btye
+                out+=$esc
+            else
+                # no lookup table match, byte falls through
+                out+=$c
+            fi
+
+            echo "$c"
+        done
+        printf "%s\n" "$out"
+
+}
+_jv_jsonvar() {
+    local all='false'
+    local exported='false'
+    local value='false'
+
+    local OPTIND OPTARG opt
+    while getopts 'aevh' opt; do
+        case "$opt" in
+            a) all='true';;
+            e) exported='true';;
+            v) value='true';;
+            h) _jv_usage; return 0;;
+            *) _jv_usage <&2; return 2;;
+        esac
+    done
+    shift "$((OPTIND - 1))"
+    local -a variables
+    if $all; then
+        compgen -v -V variables
+    elif
+        compgen -e -V variables
+    else
+        variables=("$@")
+        if ((${#variables[@]} == 0 )); do
+                echo 'no variable detected' >&2
+                _jv_usage
+                return 2
+        fi
+    fi
+
+    # loop through the variavles and format them
+    echo "{"
+    for var in "${variables[@]}"; do
+        # "key":<value>
+
+        # indent
+}
+
+_jv-encode-variables() {
+        local name=$1
+        local -n ref=$name
+        case "${ref@a}" in
+                *a*) # process indexed array
+                        echo -n '['
+                        local value i=0 
+                        for value in "${!ref[@]}"; do
+                            ((i++)) # TODO: Serialize
+                            _jv-json-encode-string "$value"
+                            if ((i < ${ref[@]})); then
+                                echo -n ','
+                            fi
+                        done
+                        echo -n ']'
+                        ;;
+                *A*) # process associative array
+                        echo -n '['
+                        local key value i=0
+                        for key in "${!ref[@]}"; do
+                                (((i++))
+                                _jv-json-encode-string "$value"
+                                value=${ref[$key]}
+                                echo "$key: $value"
+                        done
+                        ;;
+                *i*) # process integer
+                        echo "$ref"
+                        ;;
+                *) # anything else, it's probably a string tbh
+                        echo "'$ref'" 
+                        ;;
+        esac
+}
+
+
+
+
+
